@@ -1,39 +1,78 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
-from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
+import unittest
 
-data = pd.read_csv('Student_Performance.csv')
+# Load the data
+df = pd.read_csv('Student_Performance.csv')
 
-hours_studied = data['Hours Studied'].values
-performance_index = data['Performance Index'].values
+# Define the independent variable (Hours Studied) and dependent variable (Performance Index)
+X = df['Hours Studied'].values.reshape(-1,1)
+y = df['Performance Index'].values
 
+# Linear Regression
 linear_model = LinearRegression()
-linear_model.fit(hours_studied.reshape(-1, 1), performance_index)
-linear_predictions = linear_model.predict(hours_studied.reshape(-1, 1))
+linear_model.fit(X, y)
+y_pred_linear = linear_model.predict(X)
 
-def exponential_model(x, a, b):
-    return a * np.exp(b * x)
+# Exponential Regression
+# Transform the dependent variable to apply Linear Regression
+y_log = np.log(y)
+exp_model = LinearRegression()
+exp_model.fit(X, y_log)
+y_pred_exp = np.exp(exp_model.predict(X))
 
-params, _ = curve_fit(exponential_model, hours_studied, performance_index)
-exponential_predictions = exponential_model(hours_studied, *params)
+# Calculate the Root Mean Squared Error (RMSE) for each model
+rmse_linear = np.sqrt(mean_squared_error(y, y_pred_linear))
+rmse_exp = np.sqrt(mean_squared_error(y, y_pred_exp))
 
-linear_error = np.sqrt(mean_squared_error(performance_index, linear_predictions))
-exponential_error = np.sqrt(mean_squared_error(performance_index, exponential_predictions))
+# Plot the data and the regression models
+plt.figure(figsize=(12, 6))
 
-plt.figure(figsize=(10, 5))
+# Plot the data
+plt.scatter(X, y, color='blue', label='Data')
 
-plt.scatter(hours_studied, performance_index, color='blue', label='Data')
-plt.plot(hours_studied, linear_predictions, color='red', label=f'Linear Model (RMS Error = {linear_error:.2f})')
-plt.plot(hours_studied, exponential_predictions, color='green', label=f'Exponential Model (RMS Error = {exponential_error:.2f})')
+# Plot the Linear Regression model
+plt.plot(X, y_pred_linear, color='red', label=f'Linear Regression (RMSE = {rmse_linear:.2f})')
+
+# Plot the Exponential Regression model
+plt.plot(X, y_pred_exp, color='green', label=f'Exponential Regression (RMSE = {rmse_exp:.2f})')
 
 plt.xlabel('Hours Studied')
 plt.ylabel('Performance Index')
+plt.title('Regression Models for Student Performance')
 plt.legend()
-plt.grid(True)
 plt.show()
 
-print(f'RMS Error of Linear Model: {linear_error}')
-print(f'RMS Error of Exponential Model: {exponential_error}')
+# Print the RMSE for each model
+print(f'RMSE for Linear Regression: {rmse_linear}')
+print(f'RMSE for Exponential Regression: {rmse_exp}')
+
+# Define a function to calculate RMSE
+def calculate_rmse(actual, predicted):
+    return np.sqrt(mean_squared_error(actual, predicted))
+
+# Define a function to test the Linear Regression model
+def test_linear_regression(X, y):
+    linear_model.fit(X, y)
+    y_pred = linear_model.predict(X)
+    return np.allclose(y_pred, y_pred_linear, atol=1e-2)
+
+# Define a function to test the Exponential Regression model
+def test_exponential_regression(X, y):
+    y_log = np.log(y)
+    exp_model.fit(X, y_log)
+    y_pred = np.exp(exp_model.predict(X))
+    return np.allclose(y_pred, y_pred_exp, atol=1e-2)
+
+# Test the calculate_rmse function
+assert calculate_rmse(y, y_pred_linear) == rmse_linear
+assert calculate_rmse(y, y_pred_exp) == rmse_exp
+
+# Test the Linear Regression model
+assert test_linear_regression(X, y)
+
+# Test the Exponential Regression model
+assert test_exponential_regression(X, y)
